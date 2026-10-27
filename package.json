@@ -8,5 +8,10 @@
     "build": "tsc",
     "start": "tsc && electron .",
     "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "electron": "^45.0.0",
+    "typescript": "^7.0.2"
   }
 }

@@ -4,7 +4,7 @@ Ce fichier fournit des instructions à Claude Code (claude.ai/code) pour travail
 
 # Module Vegestock
 
-Dépôt à l'état de squelette : `src/` est vide, aucune dépendance installée, pas de dépôt git. Le contenu ci-dessous décrit l'architecture visée, pas du code existant.
+Dépôt en démarrage : `src/` contient `main.ts`, `preload.cts`, `producteurs.ts` et `renderer/index.html` (liste des producteurs via l'API du site, voir `spec/specification.md`). Les autres fonctionnalités ci-dessous (ajout de producteur, correspondances) sont l'architecture visée, pas du code existant.
 
 Application **Windows** (desktop) de gestion des producteurs d'un site web et des tables de correspondance des produits.
 Elle se connecte à un serveur distant (fichiers CSV/XML) et à la base MySQL/MariaDB du site (administrée via phpMyAdmin).
@@ -31,13 +31,15 @@ Les fonctionnalités 2 et 3 sont identiques (autre nom de fichier) : un seul mod
 ## Commandes
 
 - `npm install` — installer les dépendances
-- `npm start` — compiler et lancer l'application
+- `npm start` — compiler et lancer l'application (saisir URL et jeton dans l'onglet « Paramètres » au premier lancement)
 - `npm run typecheck` — vérification des types
 - Pas de tests ni de linter pour l'instant
 
 ## Structure prévue
 
 - `src/main.ts` — processus principal Electron (fenêtre, IPC, accès réseau/DB)
+- `src/producteurs.ts` — `getProducteurs()` : appelle `GET /api/producteurs.php` du site (table `t_producteurs`, `Authorization: Bearer <jeton>`), valide les 10 champs.
+- `src/parametres.ts` — URL + jeton de l'API, jeton chiffré par `safeStorage` ; seul `main` le lit.
 - `src/` — le reste : connexion serveur de fichiers, accès base, lecture/écriture CSV+XML, producteurs
 - Les accès réseau et base se font **uniquement côté main** ; le renderer passe par IPC (preload).
 
