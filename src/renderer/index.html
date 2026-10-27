@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+  <title>Vegestock</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; }
+    [role=tablist] { display: flex; gap: 4px; padding: 8px 8px 0; border-bottom: 1px solid #ccc; }
+    [role=tab] { padding: 8px 16px; border: 1px solid #ccc; border-bottom: none; background: #f2f2f2; cursor: pointer; }
+    [role=tab][aria-selected=true] { background: #fff; font-weight: bold; }
+    [role=tabpanel] { padding: 16px; }
+    [hidden] { display: none !important; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  </style>
+</head>
+<body>
+  <div role="tablist">
+    <button role="tab" aria-controls="producteurs" aria-selected="true">Producteurs</button>
+    <button role="tab" aria-controls="conditionnements" aria-selected="false">Conditionnements</button>
+    <button role="tab" aria-controls="tailles" aria-selected="false">Tailles</button>
+    <button role="tab" aria-controls="parametres" aria-selected="false">Paramètres</button>
+  </div>
+
+  <section role="tabpanel" id="producteurs">
+    <p id="producteurs-erreur" role="alert" hidden style="color:#b00020"></p>
+    <table id="producteurs-liste"><thead><tr><th data-tri="id">Id</th><th data-tri="entreprise">Entreprise</th><th>Email</th><th>Logo</th><th>Adresse</th><th>Code postal</th><th>Ville</th><th>Téléphone</th><th>Fax</th><th data-tri="actif">Actif</th><th>Modifier</th></tr></thead><tbody></tbody></table>
+    <form id="fiche" hidden style="display:grid;gap:8px;max-width:520px">
+      <h2 style="margin:0">Fiche producteur</h2>
+      <label>Id<br><input name="id" readonly style="width:100%"></label>
+      <label>Entreprise<br><input name="entreprise" required style="width:100%"></label>
+      <label>Email<br><input name="email" type="email" style="width:100%"></label>
+      <label>Logo (URL)<br><input name="logo" style="width:100%"></label>
+      <label>Adresse<br><input name="adresse" style="width:100%"></label>
+      <label>Code postal<br><input name="codepostal" style="width:100%"></label>
+      <label>Ville<br><input name="ville" style="width:100%"></label>
+      <label>Téléphone<br><input name="telephone" style="width:100%"></label>
+      <label>Fax<br><input name="fax" style="width:100%"></label>
+      <label><input name="actif" type="checkbox"> Actif</label>
+      <p id="fiche-erreur" role="alert" hidden style="margin:0;color:#b00020"></p>
+      <div><button type="submit">Enregistrer</button> <button type="button" id="fiche-annuler">Annuler</button></div>
+    </form>
+  </section>
+  <section role="tabpanel" id="conditionnements" hidden>
+    <table><thead><tr><th>Clé</th><th>Valeur</th></tr></thead><tbody></tbody></table>
+  </section>
+  <section role="tabpanel" id="tailles" hidden>
+    <table><thead><tr><th>Clé</th><th>Valeur</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section role="tabpanel" id="parametres" hidden>
+    <form id="parametres-form" style="display:grid;gap:8px;max-width:520px">
+      <label>URL de l'API des producteurs<br><input id="p-url" type="url" required style="width:100%"></label>
+      <label>Jeton (Bearer)<br><input id="p-jeton" type="password" autocomplete="off" style="width:100%"></label>
+      <p id="p-jeton-etat" style="margin:0;color:#555"></p>
+      <button type="submit" style="justify-self:start">Enregistrer</button>
+      <p id="p-msg" role="status" style="margin:0"></p>
+    </form>
+  </section>
+
+  <script>
+    const tabs = document.querySelectorAll("[role=tab]");
+    tabs.forEach((t) => t.addEventListener("click", () => {
+      tabs.forEach((o) => {
+        const on = o === t;
+        o.setAttribute("aria-selected", on);
+        document.getElementById(o.getAttribute("aria-controls")).hidden = !on;
+      });
+    }));
+
+    const CHAMPS = ["id", "entreprise", "email", "logo", "adresse", "codepostal", "ville", "telephone", "fax", "actif"];
+    const liste = document.getElementById("producteurs-liste");
+    const fiche = document.getElementById("fiche");
+    const ficheErreur = document.getElementById("fiche-erreur");
+    let producteurs = [];
+    let tri = { col: null, asc: true };
+
+    function afficherProducteurs() {
+      const tbody = liste.tBodies[0];
+      tbody.replaceChildren();
+      const rows = [...producteurs];
+      if (tri.col) {
+        const sens = tri.asc ? 1 : -1;
+        rows.sort((a, b) => sens * (tri.col === "entreprise"
+          ? String(a.entreprise).localeCompare(String(b.entreprise), "fr")
+          : Number(a[tri.col]) - Number(b[tri.col])));
+      }
+      liste.querySelectorAll("th[data-tri]").forEach((th) => {
+        th.textContent = th.textContent.replace(/ [▲▼]$/, "") + (th.dataset.tri === tri.col ? (tri.asc ? " ▲" : " ▼") : "");
+      });
+      for (const p of rows) {
+        const tr = tbody.insertRow();
+        for (const c of CHAMPS) {
+          tr.insertCell().textContent = c === "actif" ? (Number(p.actif) ? "Oui" : "Non") : (p[c] ?? "");
+        }
+        const btn = document.createElement("button");
+        btn.textContent = "Modifier";
+        btn.addEventListener("click", () => ouvrirFiche(p));
+        tr.insertCell().append(btn);
+      }
+    }
+
+    liste.querySelectorAll("th[data-tri]").forEach((th) => {
+      th.style.cursor = "pointer";
+      th.addEventListener("click", () => {
+        tri = { col: th.dataset.tri, asc: tri.col === th.dataset.tri ? !tri.asc : true };
+        afficherProducteurs();
+      });
+    });
+
+    function ouvrirFiche(p) {
+      for (const c of CHAMPS) {
+        const el = fiche.elements[c];
+        if (c === "actif") el.checked = !!Number(p.actif);
+        else el.value = p[c] ?? "";
+      }
+      ficheErreur.hidden = true;
+      liste.hidden = true;
+      fiche.hidden = false;
+    }
+    function fermerFiche() {
+      fiche.hidden = true;
+      liste.hidden = false;
+    }
+    document.getElementById("fiche-annuler").addEventListener("click", fermerFiche);
+    fiche.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const p = {};
+      for (const c of CHAMPS) {
+        const el = fiche.elements[c];
+        p[c] = c === "actif" ? (el.checked ? 1 : 0) : c === "id" ? Number(el.value) : el.value.trim();
+      }
+      try {
+        const r = await window.api.updateProducteur(p);
+        fermerFiche();
+        await chargerProducteurs();
+        if (r.avertissement) {
+          const w = document.getElementById("producteurs-erreur");
+          w.textContent = r.avertissement;
+          w.hidden = false;
+        }
+      } catch (e) {
+        ficheErreur.textContent = "Erreur : " + e.message;
+        ficheErreur.hidden = false;
+      }
+    });
+
+    async function chargerProducteurs() {
+      const erreur = document.getElementById("producteurs-erreur");
+      erreur.hidden = true;
+      try {
+        producteurs = await window.api.listProducteurs();
+        afficherProducteurs();
+      } catch (e) {
+        erreur.textContent = "Impossible de charger les producteurs : " + e.message;
+        erreur.hidden = false;
+      }
+    }
+
+    const pUrl = document.getElementById("p-url");
+    const pJeton = document.getElementById("p-jeton");
+    const pMsg = document.getElementById("p-msg");
+    async function chargerParametres() {
+      const p = await window.api.getParametres();
+      pUrl.value = p.url;
+      document.getElementById("p-jeton-etat").textContent = p.jetonDefini
+        ? "Un jeton est enregistré (laisser vide pour le conserver)."
+        : "Aucun jeton enregistré.";
+    }
+    document.getElementById("parametres-form").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      try {
+        await window.api.saveParametres(pUrl.value.trim(), pJeton.value.trim());
+        pJeton.value = "";
+        pMsg.textContent = "Enregistré.";
+        await chargerParametres();
+        await chargerProducteurs();
+      } catch (e) {
+        pMsg.textContent = "Erreur : " + e.message;
+      }
+    });
+
+    chargerParametres();
+    chargerProducteurs();
+  </script>
+</body>
+</html>
