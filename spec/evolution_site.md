@@ -20,4 +20,23 @@ L'appli calcule la latitude et la longitude (API Adresse, à partir de `adresse`
 - **Pas de géocodage côté site** : il est fait par l'appli. Le site stocke les valeurs reçues telles quelles.
 - **Réponses** : le `200` renvoie aussi `latitude` et `longitude`. `producteurs.php` doit les renvoyer également, pour afficher la carte sur le site.
 
-Ce service est à écrire dans le projet du site, pas dans ce dépôt.
+## Ajout d'un producteur
+
+Deux web services supplémentaires, même jeton Bearer. Voir `work/ajout_producteur/spec.md`.
+
+### `GET /api/producteur_id_disponible.php`
+
+- `200` : `{"id": 123}`, l'id disponible : premier enregistrement dont le nom vaut « Non défini », sinon dernier id + 1.
+- `401 {"error":"unauthorized"}` : jeton absent ou faux.
+- Lecture seule : ne crée rien en base.
+
+### `POST /api/producteur_ajouter.php`
+
+- **Corps JSON** : mêmes champs que `producteur_modifier.php` :
+  `{"id":12,"entreprise":"…","email":"…","logo":"…","adresse":"…","codepostal":"…","ville":"…","telephone":"…","fax":"…","actif":1,"latitude":48.856614,"longitude":2.352222}`
+- **Requête SQL** (préparée) : si l'`id` existe avec le nom « Non défini », l'enregistrement est mis à jour ; si l'`id` n'existe pas (dernier id + 1), il est inséré.
+- **Validation** : `entreprise` obligatoire, `email` obligatoire et valide, `actif` ∈ {0,1}, `latitude`/`longitude` `null` ou numériques dans les bornes (voir ci-dessus).
+- **Réponses** : `200` + producteur créé (avec `latitude` et `longitude`) ; `400 {"error":"…"}` validation ; `401` jeton ; `409` id déjà utilisé par un producteur défini.
+- **Pas de géocodage côté site** : coordonnées stockées telles que reçues. Les apostrophes sont déjà encodées par l'appli et ne sont pas ré-encodées.
+
+Ces services sont à écrire dans le projet du site, pas dans ce dépôt.
