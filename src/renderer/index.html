@@ -25,6 +25,10 @@
 
   <section role="tabpanel" id="producteurs">
     <p id="producteurs-erreur" role="alert" hidden style="color:#b00020"></p>
+    <div id="barre" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <input id="recherche" type="search" placeholder="Rechercher une entreprise" autocomplete="off">
+      <button type="button" id="ajouter">Ajouter</button>
+    </div>
     <table id="producteurs-liste"><thead><tr><th data-tri="id">Id</th><th data-tri="entreprise">Entreprise</th><th>Email</th><th>Logo</th><th>Adresse</th><th>Code postal</th><th>Ville</th><th>Téléphone</th><th>Fax</th><th data-tri="actif">Actif</th><th>Modifier</th></tr></thead><tbody></tbody></table>
     <form id="fiche" hidden style="display:grid;gap:8px;max-width:520px">
       <h2 style="margin:0">Fiche producteur</h2>
@@ -54,6 +58,23 @@
       <label>URL de l'API des producteurs<br><input id="p-url" type="url" required style="width:100%"></label>
       <label>Jeton (Bearer)<br><input id="p-jeton" type="password" autocomplete="off" style="width:100%"></label>
       <p id="p-jeton-etat" style="margin:0;color:#555"></p>
+      <fieldset style="display:grid;gap:8px">
+        <legend>Fichier producteur.csv</legend>
+        <label><input type="radio" name="csv-mode" value="chemin"> Chemin du fichier</label>
+        <div id="csv-chemin-bloc" style="display:flex;gap:8px">
+          <input id="c-chemin" placeholder="C:\vegestock\producteur.csv" style="flex:1">
+          <button type="button" id="c-parcourir">Parcourir…</button>
+        </div>
+        <label><input type="radio" name="csv-mode" value="ftp"> FTP</label>
+        <div id="csv-ftp-bloc" style="display:grid;gap:8px">
+          <label>Hôte<br><input id="c-hote" style="width:100%"></label>
+          <label>Port<br><input id="c-port" type="number" min="1" max="65535" value="21" style="width:100%"></label>
+          <label>Utilisateur<br><input id="c-utilisateur" autocomplete="off" style="width:100%"></label>
+          <label>Mot de passe<br><input id="c-mdp" type="password" autocomplete="off" style="width:100%"></label>
+          <p id="c-mdp-etat" style="margin:0;color:#555"></p>
+          <label>Chemin distant<br><input id="c-distant" placeholder="/data/producteur.csv" style="width:100%"></label>
+        </div>
+      </fieldset>
       <button type="submit" style="justify-self:start">Enregistrer</button>
       <p id="p-msg" role="status" style="margin:0"></p>
     </form>
@@ -74,12 +95,18 @@
     const fiche = document.getElementById("fiche");
     const ficheErreur = document.getElementById("fiche-erreur");
     let producteurs = [];
+    const barre = document.getElementById("barre");
+    const recherche = document.getElementById("recherche");
     let tri = { col: null, asc: true };
+    let mode = "modif"; // "ajout" | "modif"
+
+    const norm = (s) => String(s ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
     function afficherProducteurs() {
       const tbody = liste.tBodies[0];
       tbody.replaceChildren();
-      const rows = [...producteurs];
+      const q = norm(recherche.value.trim());
+      const rows = producteurs.filter((p) => norm(p.entreprise).includes(q));
       if (tri.col) {
         const sens = tri.asc ? 1 : -1;
         rows.sort((a, b) => sens * (tri.col === "entreprise"
@@ -89,6 +116,11 @@
       liste.querySelectorAll("th[data-tri]").forEach((th) => {
         th.textContent = th.textContent.replace(/ [▲▼]$/, "") + (th.dataset.tri === tri.col ? (tri.asc ? " ▲" : " ▼") : "");
       });
+      if (!rows.length) {
+        const td = tbody.insertRow().insertCell();
+        td.colSpan = 11;
+        td.textContent = "Aucun producteur trouvé";
+      }
       for (const p of rows) {
         const tr = tbody.insertRow();
         for (const c of CHAMPS) {
@@ -109,20 +141,37 @@
       });
     });
 
-    function ouvrirFiche(p) {
+    recherche.addEventListener("input", afficherProducteurs);
+
+    function ouvrirFiche(p, m = "modif") {
+      mode = m;
       for (const c of CHAMPS) {
         const el = fiche.elements[c];
         if (c === "actif") el.checked = !!Number(p.actif);
         else el.value = p[c] ?? "";
       }
+      fiche.elements.email.required = mode === "ajout";
       ficheErreur.hidden = true;
+      barre.hidden = true;
       liste.hidden = true;
       fiche.hidden = false;
     }
     function fermerFiche() {
       fiche.hidden = true;
+      barre.hidden = false;
       liste.hidden = false;
     }
+    document.getElementById("ajouter").addEventListener("click", async () => {
+      const erreur = document.getElementById("producteurs-erreur");
+      erreur.hidden = true;
+      try {
+        const id = await window.api.nextIdProducteur();
+        ouvrirFiche({ id, actif: 1 }, "ajout");
+      } catch (e) {
+        erreur.textContent = "Impossible d'obtenir un id disponible : " + e.message;
+        erreur.hidden = false;
+      }
+    });
     document.getElementById("fiche-annuler").addEventListener("click", fermerFiche);
     fiche.addEventListener("submit", async (ev) => {
       ev.preventDefault();
@@ -131,8 +180,13 @@
         const el = fiche.elements[c];
         p[c] = c === "actif" ? (el.checked ? 1 : 0) : c === "id" ? Number(el.value) : el.value.trim();
       }
+      if (mode === "ajout" && (!p.entreprise || !p.email)) {
+        ficheErreur.textContent = "Erreur : l'entreprise et l'email sont obligatoires";
+        ficheErreur.hidden = false;
+        return;
+      }
       try {
-        const r = await window.api.updateProducteur(p);
+        const r = await (mode === "ajout" ? window.api.addProducteur(p) : window.api.updateProducteur(p));
         fermerFiche();
         await chargerProducteurs();
         if (r.avertissement) {
@@ -161,18 +215,57 @@
     const pUrl = document.getElementById("p-url");
     const pJeton = document.getElementById("p-jeton");
     const pMsg = document.getElementById("p-msg");
+    const cChemin = document.getElementById("c-chemin");
+    const cHote = document.getElementById("c-hote");
+    const cPort = document.getElementById("c-port");
+    const cUtilisateur = document.getElementById("c-utilisateur");
+    const cMdp = document.getElementById("c-mdp");
+    const cDistant = document.getElementById("c-distant");
+    const modeCsv = () => document.querySelector("input[name=csv-mode]:checked")?.value ?? "";
+    function majBlocsCsv() {
+      document.getElementById("csv-chemin-bloc").hidden = modeCsv() !== "chemin";
+      document.getElementById("csv-ftp-bloc").hidden = modeCsv() !== "ftp";
+    }
+    document.querySelectorAll("input[name=csv-mode]").forEach((r) => r.addEventListener("change", majBlocsCsv));
+    document.getElementById("c-parcourir").addEventListener("click", async () => {
+      const chemin = await window.api.parcourirCsv();
+      if (chemin) cChemin.value = chemin;
+    });
+
     async function chargerParametres() {
       const p = await window.api.getParametres();
       pUrl.value = p.url;
       document.getElementById("p-jeton-etat").textContent = p.jetonDefini
         ? "Un jeton est enregistré (laisser vide pour le conserver)."
         : "Aucun jeton enregistré.";
+      const csv = p.csv;
+      document.querySelectorAll("input[name=csv-mode]").forEach((r) => { r.checked = r.value === csv.mode; });
+      cChemin.value = csv.chemin;
+      cHote.value = csv.ftp.hote;
+      cPort.value = csv.ftp.port;
+      cUtilisateur.value = csv.ftp.utilisateur;
+      cDistant.value = csv.ftp.cheminDistant;
+      document.getElementById("c-mdp-etat").textContent = csv.ftp.mdpDefini
+        ? "Un mot de passe est enregistré (laisser vide pour le conserver)."
+        : "Aucun mot de passe enregistré.";
+      majBlocsCsv();
     }
     document.getElementById("parametres-form").addEventListener("submit", async (ev) => {
       ev.preventDefault();
       try {
-        await window.api.saveParametres(pUrl.value.trim(), pJeton.value.trim());
+        await window.api.saveParametres(pUrl.value.trim(), pJeton.value.trim(), {
+          mode: modeCsv(),
+          chemin: cChemin.value.trim(),
+          ftp: {
+            hote: cHote.value.trim(),
+            port: Number(cPort.value),
+            utilisateur: cUtilisateur.value.trim(),
+            mdp: cMdp.value,
+            cheminDistant: cDistant.value.trim(),
+          },
+        });
         pJeton.value = "";
+        cMdp.value = "";
         pMsg.textContent = "Enregistré.";
         await chargerParametres();
         await chargerProducteurs();
