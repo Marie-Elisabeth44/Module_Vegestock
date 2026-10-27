@@ -2,7 +2,7 @@
 
 ## Périmètre
 
-Ce projet lit le JSON des producteurs, l'affiche, et permet de **modifier** un producteur (voir « Gestion des producteurs »). La génération du JSON et l'écriture en base se font dans le site Vegestock (`http://local.vegestock`) et ne sont **pas** implémentées ici.
+Ce projet lit le JSON des producteurs, l'affiche, et permet de **modifier** (voir « Gestion des producteurs ») et d'**ajouter** (voir « Ajout d'un producteur ») un producteur. La génération du JSON et l'écriture en base se font dans le site Vegestock (`http://local.vegestock`) et ne sont **pas** implémentées ici.
 
 ## Contrat avec le site (à fournir par le site)
 
@@ -62,6 +62,17 @@ Mise en œuvre : `geocoder()` dans `src/producteurs.ts` (côté `main`) interrog
 4. **Enregistrement** : renderer → IPC `producteurs:update` → `main` → `updateProducteur()` dans `src/producteurs.ts` (`fetch` POST + jeton) → site. Validation locale avant envoi (mêmes règles que le site). Succès : retour à la liste rechargée. Erreur (400/401/404/réseau) : message dans la fiche, saisie conservée.
 5. Fichiers touchés : `src/producteurs.ts`, `src/main.ts`, `src/preload.cts` (`updateProducteur`), `src/renderer/index.html`. Toujours `textContent`/`value`, jamais `innerHTML`.
 6. **Apostrophes et entités numériques** : à l'écran (liste et fiche) les apostrophes sont affichées telles quelles (`'` et `’`) ; en base elles sont stockées sous forme d'entités numériques (`'` → `&#39;`, `’` → `&#8217;`). Seules les apostrophes sont encodées : les caractères accentués sont envoyés tels quels. La conversion est centralisée dans `src/producteurs.ts` (côté `main`) : `encoder()` remplace `'` et `’` par leur entité avant l'envoi du POST ; `decoder()` convertit toute entité numérique `&#NNN;` / `&#xHH;` en caractère à la lecture (liste et réponse de l'update). Le renderer ne voit jamais d'entités. Les champs `id` et `actif` ne sont pas concernés ; un `&` littéral est laissé tel quel. La validation locale se fait sur la valeur saisie (non encodée). Le site stocke la valeur reçue sans la ré-encoder. Il est important de convertir l'apostrophe afin de pouvoir afficher la carte pour indiquer la localisation du producteur.
+
+## Ajout d'un producteur
+
+Détail et décisions : `work/ajout_producteur/spec.md` et `plan.md`. Résumé de ce qui est implémenté côté application (le site fournit `GET /api/producteur_id_disponible.php` et `POST /api/producteur_ajouter.php`, même jeton Bearer) :
+
+1. **Liste** : champ de recherche (sur `entreprise`, sans casse ni accents, dans le renderer) à gauche et bouton **Ajouter** à droite, au-dessus du tableau.
+2. **Id** : [Ajouter] → IPC `producteurs:nextId` → `getIdDisponible()` (`src/producteurs.ts`). Erreur : message au-dessus de la liste, fiche non ouverte.
+3. **Fiche** : la même que pour la modification, en mode `ajout` (`id` en lecture seule, `actif` coché, `entreprise` et `email` obligatoires). Enregistrer → IPC `producteurs:add` → `main` valide, puis `ajouterProducteur()` (`src/producteurCsv.ts`) ajoute `id;entreprise;email` à `producteur.csv`, puis `ajouterProducteurSite()` envoie toutes les données au site (mêmes géocodage et encodage des apostrophes que la modification).
+4. **`producteur.csv`** : séparateur `;`, colonnes repérées par leur nom d'en-tête, UTF-8 (BOM et fin de ligne conservés), `entreprise` encodée comme en base. Id déjà présent : refus « Id déjà utilisé », sauf reprise (mêmes `entreprise` et `email`, rien n'est réécrit, on enchaîne sur le site). Écriture via fichier temporaire puis remplacement.
+5. **Emplacement** : onglet « Paramètres », bloc « Fichier producteur.csv » (`src/parametres.ts`) : chemin local/réseau (bouton « Parcourir… ») ou FTP (hôte, port, utilisateur, mot de passe chiffré par `safeStorage`, chemin distant). En FTP : téléchargement dans un répertoire temporaire, ajout de la ligne, envoi sous `.tmp` puis contrôle de taille et renommage. FTP en clair (pas de FTPS pour l'instant).
+6. Dépendance ajoutée : `basic-ftp`. Vérification de `producteurCsv.ts` : `npm run build && node dist/producteurCsv.check.js`.
 
 ## Vérification
 
