@@ -22,7 +22,7 @@
     [hidden] { display: none !important; }
     header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px 0; position: sticky; top: 0; z-index: 5; }
     .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-    .logo { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #4fbf7a, #2e7d4f); display: grid; place-items: center; color: #fff; font-weight: 700; }
+    .logo { width: 64px; height: 64px; border-radius: 10px; object-fit: contain; }
     .brand h1 { font-size: 18px; margin: 0; }
     .brand span { color: var(--muted); font-size: 13px; }
     [role=tablist] { display: flex; gap: 4px; overflow-x: auto; }
@@ -85,8 +85,8 @@
 <body>
   <header>
     <div class="brand">
-      <div class="logo">V</div>
-      <div><h1>Vegestock</h1><span>Gestion des producteurs</span></div>
+      <img class="logo" src="logo.png" alt="Vegestock">
+      <div><h1>Vegestock</h1><span>Administration du site Végéstock.com</span></div>
     </div>
     <div role="tablist">
       <button role="tab" aria-controls="producteurs" aria-selected="true">Producteurs</button>

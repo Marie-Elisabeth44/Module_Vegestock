@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu } from "electron";
 import { fileURLToPath } from "node:url";
 import { ajouterProducteurSite, getIdDisponible, getProducteurs, updateProducteur, type Producteur } from "./producteurs.js";
 import { ajouterProducteur } from "./producteurCsv.js";
@@ -43,6 +43,7 @@ app.whenReady().then(() => {
   ipcMain.handle("parametres:get", getParametresPublics);
   ipcMain.handle("parametres:save", (_e, url: string, jeton: string, csv?: unknown) =>
     saveParametres(String(url), String(jeton), csvDepuisIpc(csv)));
+  Menu.setApplicationMenu(null);
   const win = new BrowserWindow({
     width: 1000,
     height: 700,
