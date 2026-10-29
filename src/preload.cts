@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld("api", {
   listCorrespondances: (nom: string) => ipcRenderer.invoke("correspondances:list", nom),
   saveCorrespondances: (nom: string, lignes: unknown) => ipcRenderer.invoke("correspondances:save", nom, lignes),
   parcourirCsv: () => ipcRenderer.invoke("dialog:parcourirCsv"),
+  choisirLogo: () => ipcRenderer.invoke("logo:choisir"),
+  envoyerLogo: () => ipcRenderer.invoke("logo:envoyer"),
   getParametres: () => ipcRenderer.invoke("parametres:get"),
   saveParametres: (url: string, jeton: string, csv?: unknown) => ipcRenderer.invoke("parametres:save", url, jeton, csv),
 });

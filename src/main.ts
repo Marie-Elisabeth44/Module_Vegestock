@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { ajouterProducteurSite, getIdDisponible, getProducteurs, updateProducteur, type Producteur } from "./producteurs.js";
 import { ajouterProducteur } from "./producteurCsv.js";
 import { enregistrerCorrespondances, lireCorrespondances, NOMS, type Correspondance, type Nom } from "./correspondances.js";
+import { choisirLogo, envoyerLogo, EXTENSIONS } from "./logo.js";
 import { getParametresPublics, saveParametres, type CsvParametres } from "./parametres.js";
 
 // Le CSV est écrit avant le site : on valide donc ici ce que le site refuserait, pour ne rien écrire inutilement
@@ -54,6 +55,13 @@ app.whenReady().then(() => {
     const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
     return r.canceled ? null : r.filePaths[0] ?? null;
   });
+  ipcMain.handle("logo:choisir", (e) => choisirLogo(async () => {
+    const options = { filters: [{ name: "Image", extensions: EXTENSIONS }], properties: ["openFile" as const] };
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const r = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options);
+    return r.canceled ? null : r.filePaths[0] ?? null;
+  }));
+  ipcMain.handle("logo:envoyer", envoyerLogo);
   ipcMain.handle("parametres:get", getParametresPublics);
   ipcMain.handle("parametres:save", (_e, url: string, jeton: string, csv?: unknown) =>
     saveParametres(String(url), String(jeton), csvDepuisIpc(csv)));

@@ -89,11 +89,13 @@ export type Ecrire = (chemin: string, octets: Buffer) => Promise<void>;
 export const cheminFichier = (csv: CsvParametres) => (csv.mode === "ftp" ? csv.ftp.cheminDistant : csv.chemin);
 
 // Lecture / écriture sûres de fichiers (local ou FTP, une seule connexion) : le fichier n'est remplacé qu'une fois la copie complète en place
-export async function avecAcces<T>(csv: CsvParametres, f: (lire: Lire, ecrire: Ecrire) => Promise<T>): Promise<T> {
+// `creerDossier` : crée le dossier du fichier écrit s'il n'existe pas (images des producteurs)
+export async function avecAcces<T>(csv: CsvParametres, f: (lire: Lire, ecrire: Ecrire) => Promise<T>, creerDossier = false): Promise<T> {
   if (csv.mode === "chemin") {
     const ecrire: Ecrire = async (chemin, octets) => {
       const tmp = `${chemin}.tmp`;
       try {
+        if (creerDossier) fs.mkdirSync(path.dirname(chemin), { recursive: true });
         fs.writeFileSync(tmp, octets);
         fs.renameSync(tmp, chemin);
       } finally {
@@ -118,6 +120,12 @@ export async function avecAcces<T>(csv: CsvParametres, f: (lire: Lire, ecrire: E
       // Envoi sous un nom temporaire, contrôle de la taille, puis remplacement : le fichier distant n'est touché qu'en dernier
       const distantTmp = `${chemin}.tmp`;
       try {
+        if (creerDossier) {
+          // ensureDir change le dossier courant : on le rétablit pour ne pas décaler les chemins relatifs suivants
+          const courant = await client.pwd();
+          await client.ensureDir(path.posix.dirname(chemin));
+          await client.cd(courant);
+        }
         await client.uploadFrom(local, distantTmp);
         if ((await client.size(distantTmp)) !== octets.length) throw new Error("taille distante différente de celle envoyée");
         await client.rename(distantTmp, chemin);

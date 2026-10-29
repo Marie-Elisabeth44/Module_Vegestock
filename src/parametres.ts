@@ -51,6 +51,16 @@ export function getParametresLiaison(nom: string): CsvParametres {
   throw new Error("Emplacement de producteurs.csv non paramétré");
 }
 
+// Image `nom` du dossier upload/producteurs/, frère de import/ (le dossier de producteurs.csv) : même mode d'accès, chemin déduit.
+export function getParametresLogo(nom: string): CsvParametres {
+  const csv = getParametresCsv();
+  if (csv.mode === "chemin") return { ...csv, chemin: path.join(path.dirname(path.dirname(csv.chemin)), "upload", "producteurs", nom) };
+  if (csv.mode === "ftp") {
+    return { ...csv, ftp: { ...csv.ftp, cheminDistant: path.posix.join(path.posix.dirname(path.posix.dirname(csv.ftp.cheminDistant)), "upload", "producteurs", nom) } };
+  }
+  throw new Error("Emplacement de producteurs.csv non paramétré");
+}
+
 export function getParametresPublics(): {
   url: string;
   jetonDefini: boolean;

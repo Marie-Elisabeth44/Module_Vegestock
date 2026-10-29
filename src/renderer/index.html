@@ -134,7 +134,8 @@
         <label>Id<input name="id" readonly></label>
         <label>Entreprise<input name="entreprise" required></label>
         <label class="full">Email<input name="email" type="email"></label>
-        <label class="full">Logo (URL)<input name="logo"></label>
+        <label class="full">Logo<input name="logo" readonly></label>
+        <div class="actions full" style="justify-content:flex-start"><button type="button" class="btn-ghost" id="logo-choisir">Choisir une image…</button><button type="button" class="btn-ghost" id="logo-retirer">Retirer</button></div>
         <label class="full">Adresse<input name="adresse"></label>
         <label>Code postal<input name="codepostal"></label>
         <label>Ville<input name="ville"></label>
@@ -198,6 +199,7 @@
     let producteurs = [];
     let filtre = "tous";
     let mode = "modif"; // "ajout" | "modif"
+    let logoEnAttente = false; // image choisie, copiée/envoyée seulement à l'enregistrement
 
     const norm = (s) => String(s ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
     const estActif = (p) => !!Number(p.actif);
@@ -278,6 +280,7 @@
 
     function ouvrirFiche(p, m = "modif") {
       mode = m;
+      logoEnAttente = false;
       for (const c of CHAMPS) {
         const e = fiche.elements[c];
         if (c === "actif") e.checked = estActif(p);
@@ -303,6 +306,22 @@
       }
     });
     document.getElementById("fiche-annuler").addEventListener("click", fermerFiche);
+    document.getElementById("logo-choisir").addEventListener("click", async () => {
+      ficheErreur.hidden = true;
+      try {
+        const logo = await window.api.choisirLogo();
+        if (!logo) return;
+        fiche.elements.logo.value = logo;
+        logoEnAttente = true;
+      } catch (e) {
+        ficheErreur.textContent = "Erreur : " + e.message;
+        ficheErreur.hidden = false;
+      }
+    });
+    document.getElementById("logo-retirer").addEventListener("click", () => {
+      fiche.elements.logo.value = "";
+      logoEnAttente = false;
+    });
     fiche.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       const p = {};
@@ -316,6 +335,7 @@
         return;
       }
       try {
+        if (logoEnAttente) p.logo = await window.api.envoyerLogo();
         const r = await (mode === "ajout" ? window.api.addProducteur(p) : window.api.updateProducteur(p));
         fermerFiche();
         await chargerProducteurs();
