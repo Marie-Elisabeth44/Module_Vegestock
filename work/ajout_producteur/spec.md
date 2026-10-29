@@ -6,8 +6,8 @@ Cette évolution ajoute à l'application :
 
 1. un **champ de recherche** sur la liste des producteurs ;
 2. un bouton **[Ajouter]** sur la liste ;
-3. le **flux d'ajout** d'un producteur : id disponible fourni par le site, fiche à remplir, validation, écriture dans `producteur.csv` ;
-4. un **paramètre** (onglet « Paramètres ») localisant `producteur.csv` : chemin de fichier ou FTP.
+3. le **flux d'ajout** d'un producteur : id disponible fourni par le site, fiche à remplir, validation, écriture dans `producteurs.csv` ;
+4. un **paramètre** (onglet « Paramètres ») localisant `producteurs.csv` : chemin de fichier ou FTP.
 
 Le web service qui retourne l'id disponible est à écrire **côté site** (hors dépôt, voir « Côté site »). L'accès réseau, FTP et fichier se fait uniquement côté `main` ; le renderer passe par IPC (preload), conformément à CLAUDE.md.
 
@@ -32,7 +32,7 @@ Une barre est ajoutée au-dessus du tableau (`#producteurs` dans `src/renderer/i
 1. **Id disponible** : clic sur [Ajouter] → IPC `producteurs:nextId` → `main` → `getIdDisponible()` (dans `src/producteurs.ts`, `fetch` GET + jeton Bearer) → site. En cas d'erreur (401, réseau, réponse invalide), un message s'affiche au-dessus de la liste et la fiche n'est pas ouverte.
 2. **Fiche** : ouverture de la fiche existante (`#fiche`), vierge, avec `id` déjà renseigné en lecture seule. Les autres champs sont à saisir (`actif` coché par défaut). Boutons Enregistrer / Annuler ; Annuler ferme la fiche sans rien écrire.
 3. **Validation** : l'enregistrement n'est possible que si **`entreprise`** et **`email`** sont renseignés et que l'email est valide. Sinon, message dans la fiche, saisie conservée, rien n'est écrit. Les autres champs sont facultatifs. Si les deux sont valides :
-   1. `id`, `entreprise` et `email` sont **ajoutés à `producteur.csv`** (voir ci-dessous) ;
+   1. `id`, `entreprise` et `email` sont **ajoutés à `producteurs.csv`** (voir ci-dessous) ;
    2. **toutes les données** de la fiche (dont `logo`, `adresse`, `codepostal`, `ville`, `telephone`, `fax`, `actif`) sont ensuite enregistrées par le site : `ajouterProducteurSite()` → `POST /api/producteur_ajouter.php` (voir « Côté site »), avec les mêmes traitements que la modification : géocodage (latitude/longitude), encodage des apostrophes et avertissement « Adresse non localisée » (voir `spec/specification.md`) ;
    3. la fiche se ferme et la liste est rechargée.
 
@@ -41,22 +41,22 @@ Une barre est ajoutée au-dessus du tableau (`#producteurs` dans `src/renderer/i
 
 La fiche sert à la fois à la modification et à l'ajout : un indicateur de mode (`ajout` / `modif`) détermine l'IPC appelé (`producteurs:add`, qui enchaîne CSV puis `ajouterProducteurSite()`, ou `producteurs:update`). `id` est en lecture seule dans les deux modes.
 
-## Paramètres : localisation de `producteur.csv`
+## Paramètres : localisation de `producteurs.csv`
 
-Dans l'onglet « Paramètres » (`src/parametres.ts`), nouveau bloc « Fichier producteur.csv » avec un choix exclusif :
+Dans l'onglet « Paramètres » (`src/parametres.ts`), nouveau bloc « Fichier producteurs.csv » avec un choix exclusif :
 
-- **Chemin du fichier** : chemin local ou réseau (ex. `C:\vegestock\producteur.csv`), avec bouton « Parcourir… » (dialogue natif ouvert par `main`).
-- **FTP** : hôte, port (21 par défaut), utilisateur, mot de passe, chemin distant du fichier (ex. `/data/producteur.csv`).
+- **Chemin du fichier** : chemin local ou réseau (ex. `C:\vegestock\producteurs.csv`), avec bouton « Parcourir… » (dialogue natif ouvert par `main`).
+- **FTP** : hôte, port (21 par défaut), utilisateur, mot de passe, chemin distant du fichier (ex. `/data/producteurs.csv`).
 
 Fonctionnement en mode FTP : l'appli **télécharge** le fichier dans un répertoire temporaire local, y ajoute la ligne, puis **renvoie** le fichier sur le serveur, et supprime la copie temporaire.
 
 Règles :
 
 - Le mot de passe FTP est chiffré par `safeStorage` (comme le jeton), jamais renvoyé au renderer (champ vide = conserver), jamais écrit dans les logs.
-- Si aucun emplacement n'est paramétré, [Ajouter] reste utilisable jusqu'à l'enregistrement, qui échoue avec « Emplacement de producteur.csv non paramétré ».
+- Si aucun emplacement n'est paramétré, [Ajouter] reste utilisable jusqu'à l'enregistrement, qui échoue avec « Emplacement de producteurs.csv non paramétré ».
 - Un bouton « Tester » facultatif peut vérifier l'accès (lecture du fichier) ; non bloquant pour la première version.
 
-## Écriture de `producteur.csv`
+## Écriture de `producteurs.csv`
 
 Format du fichier : séparateur `;`, première ligne = en-têtes `id;entreprise;email`, puis une ligne de données par producteur. Les valeurs sont placées d'après les **noms d'en-têtes** lus dans le fichier, pas d'après des positions codées en dur.
 
@@ -106,7 +106,7 @@ Corps JSON, mêmes champs que `producteur_modifier.php` : `{"id":12,"entreprise"
 2. [Ajouter] est en haut à droite, la recherche en haut à gauche.
 3. Clic [Ajouter] → fiche vierge avec l'`id` retourné par le site, non modifiable.
 4. Enregistrer sans entreprise, ou sans email, ou avec un email invalide → refus, rien d'écrit.
-5. Enregistrer un producteur valide, mode « chemin » → nouvelle ligne `id;entreprise;email` en fin de `producteur.csv`, bien échappée, et le producteur complet (adresse, etc., avec latitude/longitude) enregistré via `producteur_ajouter.php`.
+5. Enregistrer un producteur valide, mode « chemin » → nouvelle ligne `id;entreprise;email` en fin de `producteurs.csv`, bien échappée, et le producteur complet (adresse, etc., avec latitude/longitude) enregistré via `producteur_ajouter.php`.
    - Web service en échec après écriture du CSV → message ; Enregistrer à nouveau ne duplique pas la ligne CSV.
 6. Idem en mode FTP → fichier téléchargé, complété, renvoyé ; contrôle sur le serveur.
 7. Site coupé ou jeton faux → message, pas de fiche. FTP coupé ou mauvais mot de passe → message dans la fiche, saisie conservée.
@@ -118,6 +118,6 @@ Corps JSON, mêmes champs que `producteur_modifier.php` : `{"id":12,"entreprise"
 
 - **Ordre CSV puis site** : la spec écrit le CSV d'abord, puis appelle `producteur_ajouter.php`. Si le site refuse (409, 400), le CSV contient déjà la ligne ; la reprise est prévue pour le même `entreprise`/`email` mais pas pour un refus définitif. Faut-il inverser l'ordre (site d'abord, CSV ensuite) ? À confirmer.
 - **Protocole** : FTP simple, FTPS ou SFTP ? (le texte parle de FTP ; SFTP demanderait une autre bibliothèque, et FTP en clair est déconseillé hors réseau de confiance).
-- **Synchronisation avec la base** : la liste vient de `producteurs.php` (base). Le site réimporte-t-il `producteur.csv` en base ? Sinon le nouveau producteur n'apparaîtra pas dans la liste après ajout.
+- **Synchronisation avec la base** : la liste vient de `producteurs.php` (base). Le site réimporte-t-il `producteurs.csv` en base ? Sinon le nouveau producteur n'apparaîtra pas dans la liste après ajout.
 - **Réservation de l'id** : deux postes peuvent recevoir le même id si l'API ne le réserve pas ; le contrôle de doublon dans le CSV limite le risque.
 - **Latitude / longitude** : calculées à l'ajout comme à la modification, puisque `ajouterProducteurSite()` réutilise `geocoder()` ; stockées côté site, pas dans le CSV.

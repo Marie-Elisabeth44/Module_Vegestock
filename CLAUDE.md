@@ -4,7 +4,7 @@ Ce fichier fournit des instructions à Claude Code (claude.ai/code) pour travail
 
 # Module Vegestock
 
-Dépôt en démarrage : `src/` contient `main.ts`, `preload.cts`, `producteurs.ts`, `parametres.ts`, `producteurCsv.ts` et `renderer/index.html` (liste, modification et ajout de producteurs via l'API du site et `producteur.csv`, voir `spec/specification.md`). Les correspondances (conditionnements, tailles) sont l'architecture visée, pas du code existant.
+Dépôt en démarrage : `src/` contient `main.ts`, `preload.cts`, `producteurs.ts`, `parametres.ts`, `producteurCsv.ts` et `renderer/index.html` (liste, modification et ajout de producteurs via l'API du site et `producteurs.csv`, voir `spec/specification.md`). Les correspondances (conditionnements, tailles) sont l'architecture visée, pas du code existant.
 Application **Windows** (desktop) de gestion des producteurs d'un site web et des tables de correspondance des produits.
 Elle se connecte à un serveur distant (fichiers CSV/XML) et à la base MySQL/MariaDB du site (administrée via phpMyAdmin).
 
@@ -12,7 +12,7 @@ Elle se connecte à un serveur distant (fichiers CSV/XML) et à la base MySQL/Ma
 
 1. **Ajout d'un producteur** (implémenté, testé OK)
    - L'`id` vient du site (`GET /api/producteur_id_disponible.php`) : premier enregistrement `"Non défini"`, sinon dernier `id` + 1.
-   - `ajouterProducteur()` ajoute `id;entreprise;email` à `producteur.csv`, puis `ajouterProducteurSite()` envoie la fiche au site (`POST /api/producteur_ajouter.php`), qui écrit dans `t_producteurs`. L'appli n'accède jamais à la base.
+   - `ajouterProducteur()` ajoute `id;entreprise;email` à `producteurs.csv`, puis `ajouterProducteurSite()` envoie la fiche au site (`POST /api/producteur_ajouter.php`), qui écrit dans `t_producteurs`. L'appli n'accède jamais à la base.
    - Détail : « Ajout d'un producteur » dans `spec/specification.md`.
 2. **Correspondances des conditionnements** (implémenté, à tester manuellement)
    - Lecture de `conditionnements.csv` dans le sous-dossier `liaisons/` du dossier de `producteurs.csv` (local ou FTP), affichage dans un tableau éditable (code, libellé) avec recherche.
@@ -25,7 +25,7 @@ Les fonctionnalités 2 et 3 sont identiques (autre nom de fichier) : un seul mod
 ## Stack (choix de départ, à ajuster)
 
 - Electron + Node.js + TypeScript (ESM, `strict`), compilé avec `tsc` vers `dist/`
-- Installées : `electron`, `typescript`, `basic-ftp` (FTP/FTPS pour `producteur.csv`). À ajouter au besoin : `mysql2` (base), un client SFTP, `fast-xml-parser` (XML), `csv-parse`/`csv-stringify` (CSV ; l'écriture de `producteur.csv` est faite à la main)
+- Installées : `electron`, `typescript`, `basic-ftp` (FTP/FTPS pour `producteurs.csv`). À ajouter au besoin : `mysql2` (base), un client SFTP, `fast-xml-parser` (XML), `csv-parse`/`csv-stringify` (CSV ; l'écriture de `producteurs.csv` est faite à la main)
 - Interface : HTML/JS simple dans le renderer, pas de framework tant que ce n'est pas nécessaire
 
 ## Commandes
@@ -39,11 +39,9 @@ Les fonctionnalités 2 et 3 sont identiques (autre nom de fichier) : un seul mod
 
 - `src/main.ts` — processus principal Electron (fenêtre, IPC, accès réseau/DB)
 - `src/producteurs.ts` — `getProducteurs()` : appelle `GET /api/producteurs.php` du site (table `t_producteurs`, `Authorization: Bearer <jeton>`), valide les 10 champs.
-- `src/parametres.ts` — URL + jeton de l'API et emplacement de `producteur.csv` (chemin ou FTP) ; jeton et mot de passe FTP chiffrés par `safeStorage` ; seul `main` les lit.
-- `src/producteurCsv.ts` — `ajouterProducteur()` : ajoute `id;entreprise;email` à `producteur.csv` (local ou FTP). Vérification : `npm run build && node dist/producteurCsv.check.js`.
-  Fournit aussi `avecAcces()` (lecture/écriture sûres, local ou FTP, une seule connexion), réutilisé par `correspondances.ts`.
-- `src/correspondances.ts` — `lireCorrespondances(nom)` / `enregistrerCorrespondances(nom, lignes)` pour `conditionnements` et `tailles` : CSV (`;`, UTF-8 avec BOM, CRLF, en-têtes `code;libelle`) et XML (`<root><row><code/><libelle/></row></root>`, écrit par gabarit) ; `getParametresLiaison(nom)` (`parametres.ts`) donne l'emplacement. Vérification : `npm run build && node dist/correspondances.check.js`.
-- `src/` — le reste : accès base
+- `src/parametres.ts` — URL + jeton de l'API et emplacement de `producteurs.csv` (chemin ou FTP) ; jeton et mot de passe FTP chiffrés par `safeStorage` ; seul `main` les lit.
+- `src/producteurCsv.ts` — `ajouterProducteur()` : ajoute `id;entreprise;email` à `producteurs.csv` (local ou FTP). Vérification : `npm run build && node dist/producteurCsv.check.js`.
+- `src/` — le reste : connexion serveur de fichiers, accès base, lecture/écriture CSV+XML, producteurs
 - Les accès réseau et base se font **uniquement côté main** ; le renderer passe par IPC (preload).
 
 ## Sécurité (obligatoire)
@@ -56,6 +54,6 @@ Les fonctionnalités 2 et 3 sont identiques (autre nom de fichier) : un seul mod
 
 ## À définir
 
-- Protocole du serveur de fichiers : `producteur.csv` fonctionne en chemin local/réseau ou FTP en clair (`basic-ftp`) ; FTPS ou SFTP à confirmer.
+- Protocole du serveur de fichiers : `producteurs.csv` fonctionne en chemin local/réseau ou FTP en clair (`basic-ftp`) ; FTPS ou SFTP à confirmer. Chemin des autres fichiers (`conditionnements`, `tailles`) à définir
 - Accès à la base : MySQL direct depuis le poste est-il autorisé par l'hébergeur (IP, port 3306) ou faut-il passer par une API/tunnel SSH ?
 - Packaging Windows (installeur) : à ajouter plus tard
