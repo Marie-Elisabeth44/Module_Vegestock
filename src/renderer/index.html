@@ -140,7 +140,7 @@
         <label>Code postal<input name="codepostal"></label>
         <label>Ville<input name="ville"></label>
         <label>Téléphone<input name="telephone"></label>
-        <label>Fax<input name="fax"></label>
+        <label>Mobile<input name="fax"></label>
         <label class="full check"><input name="actif" type="checkbox"> Actif</label>
         <p id="fiche-erreur" class="alerte full" role="alert" hidden style="margin:0"></p>
         <div class="actions full"><button type="button" class="btn-ghost" id="fiche-annuler">Annuler</button><button type="submit">Enregistrer</button></div>
@@ -238,7 +238,7 @@
       let mail = nonRenseigne();
       if (p.email) { mail = el("a", null, p.email); mail.href = "mailto:" + p.email; }
       const tel = [p.telephone ? el("span", null, p.telephone) : nonRenseigne()];
-      if (p.fax) tel.push(el("span", "muted", " · Fax " + p.fax));
+      if (p.fax) tel.push(el("span", "muted", " · Mobile " + p.fax));
       const info = el("div", "info");
       info.append(
         ligne("mail", mail),
@@ -395,10 +395,10 @@
       const corps = el("tbody");
       const vide = el("tr");
       const celluleVide = el("td", "empty", "Aucune correspondance trouvée");
-      celluleVide.colSpan = 2;
+      celluleVide.colSpan = 3;
       vide.append(celluleVide);
       const entete = el("tr");
-      entete.append(el("th", null, "Code"), el("th", null, "Libellé"));
+      entete.append(el("th", null, "Code"), el("th", null, "Libellé"), el("th"));
       const table = el("table");
       table.append(el("thead"), corps);
       table.tHead.append(entete);
@@ -454,6 +454,18 @@
             td.append(i);
             tr.append(td);
           }
+          const suppr = el("button", "btn-ghost", "Supprimer");
+          suppr.type = "button";
+          suppr.setAttribute("aria-label", "Supprimer la ligne");
+          suppr.addEventListener("click", () => {
+            lignes.splice(lignes.indexOf(l), 1);
+            modifie = true;
+            afficher();
+            dire("Ligne supprimée : cliquez sur Enregistrer pour valider.");
+          });
+          const tdSuppr = el("td");
+          tdSuppr.append(suppr);
+          tr.append(tdSuppr);
           refs.set(l, { tr, champs });
           return tr;
         });
