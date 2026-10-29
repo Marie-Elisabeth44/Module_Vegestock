@@ -14,12 +14,13 @@ Elle se connecte à un serveur distant (fichiers CSV/XML) et à la base MySQL/Ma
    - L'`id` vient du site (`GET /api/producteur_id_disponible.php`) : premier enregistrement `"Non défini"`, sinon dernier `id` + 1.
    - `ajouterProducteur()` ajoute `id;entreprise;email` à `producteurs.csv`, puis `ajouterProducteurSite()` envoie la fiche au site (`POST /api/producteur_ajouter.php`), qui écrit dans `t_producteurs`. L'appli n'accède jamais à la base.
    - Détail : « Ajout d'un producteur » dans `spec/specification.md`.
-2. **Correspondances des conditionnements**
-   - Lecture de `conditionnements.xml` et `conditionnements.csv` sur le serveur distant, affichage dans un tableau éditable.
-   - Ajout de lignes ; à la validation, réécriture des **deux** fichiers (CSV et XML) sur le serveur.
+2. **Correspondances des conditionnements** (implémenté, à tester manuellement)
+   - Lecture de `conditionnements.csv` dans le sous-dossier `liaisons/` du dossier de `producteurs.csv` (local ou FTP), affichage dans un tableau éditable (code, libellé) avec recherche.
+   - Ajout de lignes ; à l'enregistrement, réécriture des **deux** fichiers (CSV et XML) ; si l'XML échoue, le CSV est restauré. Codes uniques, code et libellé obligatoires.
+   - Détail : `work/ajout_correspondance/spec.md` et `plan.md`.
 3. **Correspondances des tailles** : même principe avec `tailles.xml` et `tailles.csv`.
 
-Les fonctionnalités 2 et 3 sont identiques (autre nom de fichier) : un seul module générique, paramétré par le nom du fichier.
+Les fonctionnalités 2 et 3 sont identiques (autre nom de fichier) : un seul module générique, paramétré par le nom du fichier (liste blanche `NOMS`).
 
 ## Stack (choix de départ, à ajuster)
 
@@ -55,5 +56,4 @@ Les fonctionnalités 2 et 3 sont identiques (autre nom de fichier) : un seul mod
 
 - Protocole du serveur de fichiers : `producteurs.csv` fonctionne en chemin local/réseau ou FTP en clair (`basic-ftp`) ; FTPS ou SFTP à confirmer. Chemin des autres fichiers (`conditionnements`, `tailles`) à définir
 - Accès à la base : MySQL direct depuis le poste est-il autorisé par l'hébergeur (IP, port 3306) ou faut-il passer par une API/tunnel SSH ?
-- Structure (colonnes, séparateur, encodage) de `conditionnements` et `tailles` en CSV et XML
 - Packaging Windows (installeur) : à ajouter plus tard

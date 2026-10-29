@@ -41,6 +41,16 @@ export function getParametresCsv(): CsvParametres {
   return { ...csv, ftp: { ...csv.ftp, mdp: dechiffrer(csv.ftp.mdp) } };
 }
 
+// Fichier `nom` (ex. conditionnements.csv) du sous-dossier liaisons/, à côté de producteurs.csv : même mode d'accès, chemin déduit.
+export function getParametresLiaison(nom: string): CsvParametres {
+  const csv = getParametresCsv();
+  if (csv.mode === "chemin") return { ...csv, chemin: path.join(path.dirname(csv.chemin), "liaisons", nom) };
+  if (csv.mode === "ftp") {
+    return { ...csv, ftp: { ...csv.ftp, cheminDistant: path.posix.join(path.posix.dirname(csv.ftp.cheminDistant), "liaisons", nom) } };
+  }
+  throw new Error("Emplacement de producteurs.csv non paramétré");
+}
+
 export function getParametresPublics(): {
   url: string;
   jetonDefini: boolean;

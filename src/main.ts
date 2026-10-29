@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu } from "electron";
 import { fileURLToPath } from "node:url";
 import { ajouterProducteurSite, getIdDisponible, getProducteurs, updateProducteur, type Producteur } from "./producteurs.js";
 import { ajouterProducteur } from "./producteurCsv.js";
+import { enregistrerCorrespondances, lireCorrespondances, NOMS, type Correspondance, type Nom } from "./correspondances.js";
 import { getParametresPublics, saveParametres, type CsvParametres } from "./parametres.js";
 
 // Le CSV est écrit avant le site : on valide donc ici ce que le site refuserait, pour ne rien écrire inutilement
@@ -29,11 +30,24 @@ function csvDepuisIpc(c: any): CsvParametres | undefined {
   };
 }
 
+function nomCorrespondance(nom: unknown): Nom {
+  if (!NOMS.includes(nom as Nom)) throw new Error("Correspondance inconnue");
+  return nom as Nom;
+}
+
+function lignesDepuisIpc(lignes: unknown): Correspondance[] {
+  if (!Array.isArray(lignes)) throw new Error("Lignes invalides");
+  return lignes.map((l) => ({ code: String(l?.code ?? ""), libelle: String(l?.libelle ?? "") }));
+}
+
 app.whenReady().then(() => {
   ipcMain.handle("producteurs:list", getProducteurs);
   ipcMain.handle("producteurs:update", (_e, p: Producteur) => updateProducteur(p));
   ipcMain.handle("producteurs:nextId", getIdDisponible);
   ipcMain.handle("producteurs:add", (_e, p: Producteur) => ajouterProducteurComplet(p));
+  ipcMain.handle("correspondances:list", (_e, nom: string) => lireCorrespondances(nomCorrespondance(nom)));
+  ipcMain.handle("correspondances:save", (_e, nom: string, lignes: unknown) =>
+    enregistrerCorrespondances(nomCorrespondance(nom), lignesDepuisIpc(lignes)));
   ipcMain.handle("dialog:parcourirCsv", async (e) => {
     const options = { filters: [{ name: "Fichier CSV", extensions: ["csv"] }], properties: ["openFile" as const] };
     const win = BrowserWindow.fromWebContents(e.sender);
