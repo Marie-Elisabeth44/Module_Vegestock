@@ -58,8 +58,8 @@ export function saveParametres(url: string, jeton: string, csv?: CsvParametres):
   const actuel = lire();
   let nouveauCsv = actuel.csv;
   if (csv) {
-    if (!["chemin", "ftp", ""].includes(csv.mode)) throw new Error("Mode de producteur.csv invalide");
-    if (csv.mode === "chemin" && !csv.chemin.trim()) throw new Error("Chemin de producteur.csv obligatoire");
+    if (!["chemin", "ftp", ""].includes(csv.mode)) throw new Error("Mode de producteurs.csv invalide");
+    if (csv.mode === "chemin" && !csv.chemin.trim()) throw new Error("Chemin de producteurs.csv obligatoire");
     if (csv.mode === "ftp") {
       const f = csv.ftp;
       if (!f.hote.trim()) throw new Error("Hôte FTP obligatoire");

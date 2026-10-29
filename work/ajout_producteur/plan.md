@@ -9,7 +9,7 @@ Ordre choisi : du bas (main) vers le haut (renderer), pour typechecker à chaque
 - `npm install basic-ftp` (FTP/FTPS).
 - CSV : **écriture manuelle** d'une seule ligne, pas de `csv-stringify` ; lecture de l'en-tête et de la colonne `id` avec un petit découpage maison (guillemets gérés). À revoir si le format se complique.
 
-## Étape 1 : `src/parametres.ts` (emplacement de `producteur.csv`)
+## Étape 1 : `src/parametres.ts` (emplacement de `producteurs.csv`)
 
 - Étendre `Stocke` : `csv: { mode: "chemin" | "ftp" | ""; chemin: string; ftp: { hote, port, utilisateur, mdp, cheminDistant } }` ; `mdp` chiffré `safeStorage` en base64, comme `jeton`. `lire()` fusionne avec des valeurs par défaut (port 21, mode `""`) pour rester compatible avec un `parametres.json` existant.
 - `getParametresCsv()` (main uniquement) : retourne la config avec mot de passe déchiffré.
@@ -26,7 +26,7 @@ Ordre choisi : du bas (main) vers le haut (renderer), pour typechecker à chaque
 
 `ajouterProducteur({ id, entreprise, email })` :
 
-1. Récupérer le fichier : lecture locale (`fs`) ou téléchargement FTP (`basic-ftp`, répertoire temporaire `os.tmpdir()`), selon `getParametresCsv()`. Mode non paramétré → erreur « Emplacement de producteur.csv non paramétré ».
+1. Récupérer le fichier : lecture locale (`fs`) ou téléchargement FTP (`basic-ftp`, répertoire temporaire `os.tmpdir()`), selon `getParametresCsv()`. Mode non paramétré → erreur « Emplacement de producteurs.csv non paramétré ».
 2. Détecter encodage et fin de ligne existants (UTF-8 avec/sans BOM ; `\r\n` ou `\n`) et les conserver.
 3. Lire l'en-tête (séparateur `;`), repérer les colonnes `id`, `entreprise`, `email` **par nom**.
 4. Id déjà présent : si mêmes `entreprise` et `email` (après `encoder()`) → reprise, ne rien écrire, retourner ; sinon erreur « Id déjà utilisé ».
@@ -54,7 +54,7 @@ Ordre choisi : du bas (main) vers le haut (renderer), pour typechecker à chaque
    - Ajout : clic → `nextIdProducteur()` ; erreur → message au-dessus de la liste, fiche non ouverte ; succès → fiche vierge, `id` en lecture seule, `actif` coché.
    - Enregistrer : valide `entreprise` + `email` (obligatoire, format) en ajout ; appelle `addProducteur` ou `updateProducteur` selon le mode ; erreur → message dans la fiche, saisie conservée ; succès → fermer la fiche, recharger la liste.
    - Annuler : ferme sans rien écrire.
-4. **Paramètres** : bloc « Fichier producteur.csv », radios exclusifs *Chemin* / *FTP* ; chemin + bouton « Parcourir… » ; champs FTP (hôte, port 21, utilisateur, mot de passe vide = conserver, chemin distant). Afficher/masquer selon le radio. « Tester » : hors première version.
+4. **Paramètres** : bloc « Fichier producteurs.csv », radios exclusifs *Chemin* / *FTP* ; chemin + bouton « Parcourir… » ; champs FTP (hôte, port 21, utilisateur, mot de passe vide = conserver, chemin distant). Afficher/masquer selon le radio. « Tester » : hors première version.
 5. `textContent` / `value` uniquement, jamais `innerHTML`.
 
 ## Étape 6 : docs
@@ -64,7 +64,7 @@ Ordre choisi : du bas (main) vers le haut (renderer), pour typechecker à chaque
 
 ## Étape 7 : vérification
 
-Reprendre la liste « Vérification » de la spec (points 1 à 10), avec un `producteur.csv` local de test (cas : apostrophe `Ferme de l'Été`, `;` dans le nom, fin de ligne CRLF, pas de saut final, id existant, reprise après échec du site) et, pour le FTP, un serveur de test. Terminer par `npm run typecheck`.
+Reprendre la liste « Vérification » de la spec (points 1 à 10), avec un `producteurs.csv` local de test (cas : apostrophe `Ferme de l'Été`, `;` dans le nom, fin de ligne CRLF, pas de saut final, id existant, reprise après échec du site) et, pour le FTP, un serveur de test. Terminer par `npm run typecheck`.
 
 ## Points à trancher avant / pendant l'implémentation
 
