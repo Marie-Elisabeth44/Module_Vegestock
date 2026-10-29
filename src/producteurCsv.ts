@@ -2,10 +2,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Client } from "basic-ftp";
+import type { CsvParametres } from "./parametres.js";
 
 export interface LigneProducteur { id: number; entreprise: string; email: string }
 
-const SEP = ";";
+export const SEP = ";";
 
 // Découpe un texte CSV en enregistrements, guillemets et retours ligne dans les valeurs compris
 // `bornes` reçoit, si fourni, le [début, fin[ de chaque enregistrement dans le texte (retour ligne final inclus)
@@ -44,15 +45,15 @@ export function ajouterLigne(octets: Buffer, p: LigneProducteur): Buffer | null 
   try {
     texte = new TextDecoder("utf-8", { fatal: true }).decode(octets.subarray(bom ? 3 : 0));
   } catch {
-    throw new Error("producteur.csv : encodage UTF-8 attendu");
+    throw new Error("producteurs.csv : encodage UTF-8 attendu");
   }
   const bornes: [number, number][] = [];
   const lignes = parserCsv(texte, bornes);
-  if (!lignes.length) throw new Error("producteur.csv : en-têtes manquants");
+  if (!lignes.length) throw new Error("producteurs.csv : en-têtes manquants");
   const entetes = lignes[0].map((h) => h.trim().toLowerCase());
   const col = (nom: string) => {
     const i = entetes.indexOf(nom);
-    if (i < 0) throw new Error(`producteur.csv : colonne « ${nom} » introuvable`);
+    if (i < 0) throw new Error(`producteurs.csv : colonne « ${nom} » introuvable`);
     return i;
   };
   const [iId, iEntreprise, iEmail] = [col("id"), col("entreprise"), col("email")];
@@ -81,48 +82,58 @@ export function ajouterLigne(octets: Buffer, p: LigneProducteur): Buffer | null 
   return Buffer.concat([octets, Buffer.from(ajout, "utf8")]);
 }
 
-async function surFichierLocal(chemin: string, p: LigneProducteur): Promise<void> {
-  const nouveau = ajouterLigne(fs.readFileSync(chemin), p);
-  if (!nouveau) return;
-  const tmp = `${chemin}.tmp`;
-  try {
-    fs.writeFileSync(tmp, nouveau);
-    fs.renameSync(tmp, chemin);
-  } finally {
-    fs.rmSync(tmp, { force: true });
-  }
-}
+export type Lire = (chemin: string) => Promise<Buffer>;
+export type Ecrire = (chemin: string, octets: Buffer) => Promise<void>;
 
-async function surFtp(
-  ftp: { hote: string; port: number; utilisateur: string; mdp: string; cheminDistant: string },
-  p: LigneProducteur,
-): Promise<void> {
+// Chemin du fichier désigné par les paramètres (local ou distant selon le mode)
+export const cheminFichier = (csv: CsvParametres) => (csv.mode === "ftp" ? csv.ftp.cheminDistant : csv.chemin);
+
+// Lecture / écriture sûres de fichiers (local ou FTP, une seule connexion) : le fichier n'est remplacé qu'une fois la copie complète en place
+export async function avecAcces<T>(csv: CsvParametres, f: (lire: Lire, ecrire: Ecrire) => Promise<T>): Promise<T> {
+  if (csv.mode === "chemin") {
+    const ecrire: Ecrire = async (chemin, octets) => {
+      const tmp = `${chemin}.tmp`;
+      try {
+        fs.writeFileSync(tmp, octets);
+        fs.renameSync(tmp, chemin);
+      } finally {
+        fs.rmSync(tmp, { force: true });
+      }
+    };
+    return f(async (chemin) => fs.readFileSync(chemin), ecrire);
+  }
+  if (csv.mode !== "ftp") throw new Error("Emplacement de producteurs.csv non paramétré");
+  const { ftp } = csv;
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), "vegestock-"));
-  const local = path.join(dossier, "producteur.csv");
+  const local = path.join(dossier, "fichier");
   const client = new Client(15000);
   try {
     await client.access({ host: ftp.hote, port: ftp.port, user: ftp.utilisateur, password: ftp.mdp, secure: false });
-    await client.downloadTo(local, ftp.cheminDistant);
-    const nouveau = ajouterLigne(fs.readFileSync(local), p);
-    if (!nouveau) return;
-    fs.writeFileSync(local, nouveau);
-    // Envoi sous un nom temporaire, contrôle de la taille, puis remplacement : le fichier distant n'est touché qu'en dernier
-    const distantTmp = `${ftp.cheminDistant}.tmp`;
-    try {
-      await client.uploadFrom(local, distantTmp);
-      if ((await client.size(distantTmp)) !== nouveau.length) throw new Error("taille distante différente de celle envoyée");
-      await client.rename(distantTmp, ftp.cheminDistant);
-    } catch (e) {
-      await client.remove(distantTmp, true).catch(() => {});
-      throw new Error(`Échec du renvoi FTP, fichier distant non modifié : ${e instanceof Error ? e.message : e}`);
-    }
+    const lire: Lire = async (chemin) => {
+      await client.downloadTo(local, chemin);
+      return fs.readFileSync(local);
+    };
+    const ecrire: Ecrire = async (chemin, octets) => {
+      fs.writeFileSync(local, octets);
+      // Envoi sous un nom temporaire, contrôle de la taille, puis remplacement : le fichier distant n'est touché qu'en dernier
+      const distantTmp = `${chemin}.tmp`;
+      try {
+        await client.uploadFrom(local, distantTmp);
+        if ((await client.size(distantTmp)) !== octets.length) throw new Error("taille distante différente de celle envoyée");
+        await client.rename(distantTmp, chemin);
+      } catch (e) {
+        await client.remove(distantTmp, true).catch(() => {});
+        throw new Error(`Échec du renvoi FTP, fichier distant non modifié : ${e instanceof Error ? e.message : e}`);
+      }
+    };
+    return await f(lire, ecrire);
   } finally {
     client.close();
     fs.rmSync(dossier, { recursive: true, force: true });
   }
 }
 
-// Ajoute le producteur en fin de producteur.csv (chemin local ou FTP selon les paramètres)
+// Ajoute le producteur en fin de producteurs.csv (chemin local ou FTP selon les paramètres)
 export async function ajouterProducteur(p: LigneProducteur): Promise<void> {
   // Imports différés : parametres.ts et producteurs.ts dépendent d'Electron, ce qui empêche de tester les fonctions pures sous node seul
   const { getParametresCsv } = await import("./parametres.js");
@@ -130,7 +141,9 @@ export async function ajouterProducteur(p: LigneProducteur): Promise<void> {
   if (!Number.isInteger(p.id)) throw new Error("Identifiant invalide");
   const ligne = { id: p.id, entreprise: encoder(String(p.entreprise)), email: String(p.email) };
   const csv = getParametresCsv();
-  if (csv.mode === "chemin") return surFichierLocal(csv.chemin, ligne);
-  if (csv.mode === "ftp") return surFtp(csv.ftp, ligne);
-  throw new Error("Emplacement de producteur.csv non paramétré");
+  await avecAcces(csv, async (lire, ecrire) => {
+    const chemin = cheminFichier(csv);
+    const nouveau = ajouterLigne(await lire(chemin), ligne);
+    if (nouveau) await ecrire(chemin, nouveau);
+  });
 }

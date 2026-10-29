@@ -112,12 +112,12 @@ export async function getIdDisponible(): Promise<number> {
 
 export async function getProducteurs(): Promise<Producteur[]> {
   const { url, jeton } = getParametres();
-  const res = await fetch(url, {
+  const res = await fetch(new URL("producteurs.php", url), {
     headers: { Accept: "application/json", Authorization: `Bearer ${jeton}` },
   });
   if (res.status === 401) throw new Error("Jeton refusé par le site (401)");
+  const data = await lireJson<unknown>(res);
   if (!res.ok) throw new Error(`Le site a répondu ${res.status}`);
-  const data: unknown = await res.json();
   if (!Array.isArray(data)) throw new Error("JSON invalide : un tableau est attendu");
   data.forEach((p, i) => {
     const manquants = CHAMPS.filter((c) => typeof p !== "object" || p === null || !(c in p));

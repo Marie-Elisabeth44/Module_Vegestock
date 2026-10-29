@@ -74,6 +74,16 @@ Détail et décisions : `work/ajout_producteur/spec.md` et `plan.md`. Résumé d
 5. **Emplacement** : onglet « Paramètres », bloc « Fichier producteur.csv » (`src/parametres.ts`) : chemin local/réseau (bouton « Parcourir… ») ou FTP (hôte, port, utilisateur, mot de passe chiffré par `safeStorage`, chemin distant). En FTP : téléchargement dans un répertoire temporaire, ajout de la ligne, envoi sous `.tmp` puis contrôle de taille et renommage. FTP en clair (pas de FTPS pour l'instant).
 6. Dépendance ajoutée : `basic-ftp`. Vérification de `producteurCsv.ts` : `npm run build && node dist/producteurCsv.check.js`.
 
+## Correspondances : conditionnements et tailles
+
+Détail et décisions : `work/ajout_correspondance/spec.md` et `plan.md`. Implémenté côté application uniquement (aucun web service) :
+
+1. **Fichiers** : `conditionnements.csv/.xml` et `tailles.csv/.xml` dans le sous-dossier `liaisons/` du dossier de `producteurs.csv`, en chemin local ou FTP (`getParametresLiaison()`, `src/parametres.ts`). CSV : `;`, UTF-8 avec BOM, CRLF, en-têtes `code;libelle`. XML : `<root><row><code/><libelle/></row></root>`, déclaration, BOM et fin de ligne conservés.
+2. **Onglets** Conditionnements et Tailles (une seule fonction `initCorrespondances`) : tableau Code – Libellé éditable, recherche (casse et accents ignorés), **Ajouter une ligne** (en tête), **Enregistrer**. Pas de suppression de lignes.
+3. **Validation** (renderer, puis revalidée dans `main`) : code et libellé obligatoires, codes uniques (sensible à la casse). Invalide : refus, rien n'est écrit.
+4. **Enregistrement** : IPC `correspondances:list` / `correspondances:save` → `src/correspondances.ts`. Les deux contenus sont calculés avant toute écriture ; CSV écrit puis XML ; si l'XML échoue, le CSV est restauré (sinon message d'incohérence). Écriture sûre via `avecAcces()` (`src/producteurCsv.ts`) : `.tmp` puis remplacement, en FTP contrôle de taille.
+5. Vérification : `npm run build && node dist/correspondances.check.js`.
+
 ## Vérification
 
 1. `npm run typecheck` puis `npm start` → onglet Producteurs rempli avec le JSON du site.
